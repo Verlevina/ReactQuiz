@@ -1,36 +1,18 @@
 import React, {Component} from 'react';
 import classes from './Quiz.css';
 import FinishQuiz from '../../components/FinishedQuiz/FinishedQuiz.js'
-
+import axios from '../../axios/axios-quiz';
 import ActiveQuiz from '../../components/ActiveQuiz/ActiveQuiz.js'
+import Loader from '../../components/UI/loader/loader'
 
 class Quiz extends Component {
   state = {
     activeQuestion: 0,
-    isFinished: true,
-    quiz: [
-      { question:'Сколько секунд в минуте?',
-        id: 1,
-        aswerState: null,
-        answers:[
-          {text: '30', id:1},
-          {text: '40', id:2},
-          {text: '50', id:3},
-          {text: '60', id:4}
-          ],
-        rightAnswerId: 4,
-      },
-      { question:'Сколько метров в километре?',
-        id: 2,
-        answers:[
-          {text: '100', id:1},
-          {text: '1000', id:2},
-          {text: '50', id:3},
-          {text: '10', id:4}
-        ],
-        rightAnswerId: 2,
-      }
-    ]
+    isFinished: false,
+    answerState: null,
+    results: {},
+    quiz: [],
+    loading: true
 };
   isQuizFinished = () =>{
     return this.state.activeQuestion + 1 === this.state.quiz.length
@@ -43,7 +25,14 @@ class Quiz extends Component {
         return
       }
     }
+    const results = this.state.results;
     if (answerId === this.state.quiz[this.state.activeQuestion].rightAnswerId) {
+      if(!results[this.state.activeQuestion]){
+        results[this.state.activeQuestion] = 'success';
+        this.setState({
+          results
+        });
+      }
       console.log('correct');
       this.setState({
         answerState: {[answerId]:'success'}
@@ -63,37 +52,60 @@ class Quiz extends Component {
         }, 1000
       )
     } else{
-    console.log('nooo');
+      results[this.state.activeQuestion] = 'error';
       this.setState({
-        answerState: {[answerId]:'error'}
+        answerState: {[answerId]:'error'},
+        results
       });
     }
 };
+  onReTryHandler = () => {
+    this.setState ({
+      activeQuestion: 0,
+      isFinished: false,
+      answerState: null,
+      results: {}
+    })
+  };
 
+  async componentDidMount () {
+    try{
+      const response = await axios.get(`quizes/${this.props.match.params.id}.json`);
+      console.log(response);
+      const quiz = response.data;
+      this.setState({
+        quiz,
+        loading: false
+      })
+  }  catch(e){
+      console.log(e)
+    }
+  }
   render (){
     return (
-      <div className={classes.Quiz}>
-        <div className={classes["Quiz-wrapper"]}>
+      <div className = {classes.Quiz}>
+        <div className = {classes["Quiz-wrapper"]}>
           <h1>
             Ответьте на все вопросы
           </h1>
-          {
-            this.state.isFinished
-              ? <FinishQuiz/>
-              : <ActiveQuiz question={this.state.quiz[this.state.activeQuestion].question}
+          { this.state.loading
+            ? <Loader/>
+            :this.state.isFinished
+              ? <FinishQuiz results = {this.state.results}
+                            quiz = {this.state.quiz}
+                            onReTry ={this.onReTryHandler}
+              />
+              : <ActiveQuiz question = {this.state.quiz[this.state.activeQuestion].question}
                             answers = {this.state.quiz[this.state.activeQuestion].answers}
                             onAnswerClick = {this.onAnswerClickHandler}
-                            quizLength={this.state.quiz.length}
+                            quizLength = {this.state.quiz.length}
                             activeQuestion = {this.state.activeQuestion + 1}
-                            state={this.state.answerState}
+                            state = {this.state.answerState}
               />
-
           }
-
         </div>
       </div>
     )
   }
-
 }
 export default Quiz;
